@@ -1,19 +1,11 @@
-from functions.get_files_content import get_file_content
+from functions.run_python_file import run_python_file
+
+tests = [run_python_file("calculator", "main.py"),
+        run_python_file("calculator", "tests.py"),
+        run_python_file("calculator", "../main.py"),
+        run_python_file("calculator", "nonexistent.py")]
+
+for test in tests:
+    print(test)
 
 
-def test():
-    result = get_file_content("calculator", "main.py")
-    print(result)
-
-    result = get_file_content("calculator", "pkg/calculator.py")
-    print(result)
-
-    result = get_file_content("calculator", "/bin/cat")
-    print(result)
-
-
-
-
-
-if __name__ == "__main__":
-    test()
