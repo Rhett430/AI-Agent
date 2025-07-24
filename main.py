@@ -5,7 +5,7 @@ from google.genai import types
 from dotenv import load_dotenv
 
 from prompts import system_prompt
-from call_function import available_functions
+from call_function import call_function, available_functions
 
 
 def main():
@@ -34,8 +34,16 @@ def main():
     messages = [
         types.Content(role="user", parts=[types.Part(text=user_prompt)]),
     ]
-
-    generate_content(client, messages, verbose)
+    count = 0
+    while count < 20:
+        count += 1
+        try:
+            response = generate_content(client, messages, verbose)
+            if response.text and not response.function_calls:
+                   print(response.text)
+                   break
+        except Exception as e:
+            print(f"Error occurred: {e}")
 
 
 def generate_content(client, messages, verbose):
@@ -46,15 +54,34 @@ def generate_content(client, messages, verbose):
             tools=[available_functions], system_instruction=system_prompt
         ),
     )
+    for candidate in response.candidates:
+        messages.append(candidate.content)
     if verbose:
         print("Prompt tokens:", response.usage_metadata.prompt_token_count)
         print("Response tokens:", response.usage_metadata.candidates_token_count)
 
     if not response.function_calls:
-        return response.text
+        return response
 
+    function_responses = []
     for function_call_part in response.function_calls:
-        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+        function_call_result = call_function(function_call_part, verbose)
+        if (
+            not function_call_result.parts
+            or not function_call_result.parts[0].function_response
+        ):
+            raise Exception("empty function call result")
+        if verbose:
+            print(f"-> {function_call_result.parts[0].function_response.response}")
+        function_responses.append(function_call_result.parts[0])
+    if not function_responses:
+        raise Exception("no function responses generated, exiting.")
+    for function_response in function_responses:
+        function = types.Content(
+            role="tool", parts=[function_response]
+        )
+        messages.append(function)
+    return response
 
 
 if __name__ == "__main__":
